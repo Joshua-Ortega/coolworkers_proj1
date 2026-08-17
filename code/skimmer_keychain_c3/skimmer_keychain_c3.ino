@@ -39,13 +39,36 @@
 #include <LittleFS.h>
 #include <esp_sleep.h>
 
+
+// ---- must be declared before the first function definition ----
+struct Candidate {
+  bool   found = false;
+  int    score = 0;
+  int    rssi  = -127;
+  String mac;
+  String name;
+  String reasons;
+};
+
+volatile unsigned long lastIsrMs = 0;
+volatile uint8_t pressCount = 0;
+
+void IRAM_ATTR onButtonPress() {
+  unsigned long now = millis();
+  if (now - lastIsrMs > 50) {   // debounce
+    pressCount++;
+    lastIsrMs = now;
+  }
+}
+
+
 // ------------------------- Pin config (XIAO ESP32-C3) -------------------------
 const int BUTTON_PIN = 2;   // D0  (RTC/GPIO wake capable; must be GPIO 0-5)
 const int BUZZER_PIN = 3;   // D1
 const int MOTOR_PIN  = 4;   // D2  (to NPN transistor base via 1k)
 
 // ------------------------- Scan / scoring config -------------------------
-const uint32_t SCAN_BURST_MS        = 2000; // one scan burst (NimBLE 2.x = ms)
+const uint32_t SCAN_BURST_MS        = 1000; // one scan burst (NimBLE 2.x = ms)
 const int   RSSI_STRONG_THRESHOLD   = -55;  // "very close" cutoff for scoring
 const int   SCORE_ALERT_THRESHOLD   = 3;    // score >= this = suspicious
 
@@ -56,7 +79,7 @@ const int   RSSI_CLOSE = -45;  // right on top of it -> strongest feedback
 // Timing
 const unsigned long IDLE_TIMEOUT_MS = 90UL * 1000UL;
 const unsigned long LONG_PRESS_MS   = 2000;
-const unsigned long DOUBLE_PRESS_WINDOW_MS = 400;
+const unsigned long DOUBLE_PRESS_WINDOW_MS = 600;
 
 // WiFi SoftAP (sync mode)
 const char* AP_SSID = "SkimmerCheck";
@@ -77,15 +100,6 @@ RTC_DATA_ATTR int bootCount = 0;
 
 WebServer server(80);
 NimBLEScan* pBLEScan;
-
-struct Candidate {
-  bool   found = false;
-  int    score = 0;
-  int    rssi  = -127;
-  String mac;
-  String name;
-  String reasons;
-};
 
 float smoothedRssi = -100.0f;
 bool  haveLock = false;
@@ -303,26 +317,41 @@ void startSyncMode() {
 // ------------------------- Button handling -------------------------
 // Returns: 0 none, 1 single, 2 double, 3 long
 int readButtonEvent() {
-  if (digitalRead(BUTTON_PIN) == HIGH) return 0; // active LOW
-  unsigned long pressStart = millis();
-  while (digitalRead(BUTTON_PIN) == LOW) {
-    if (millis() - pressStart > LONG_PRESS_MS) return 3;
-    delay(5);
-  }
-  unsigned long releaseTime = millis();
-  while (millis() - releaseTime < DOUBLE_PRESS_WINDOW_MS) {
-    if (digitalRead(BUTTON_PIN) == LOW) {
-      while (digitalRead(BUTTON_PIN) == LOW) delay(5);
-      return 2;
+  // Long press: button currently held — poll until release or threshold
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    unsigned long start = millis();
+    while (digitalRead(BUTTON_PIN) == LOW) {
+      if (millis() - start > LONG_PRESS_MS) {
+        noInterrupts(); pressCount = 0; interrupts();   // discard latched taps
+        return 3;
+      }
+      delay(5);
     }
-    delay(5);
   }
-  return 1;
+
+  // Short presses latched by the ISR, resolved once the double-press
+  // window has elapsed with no further presses
+  noInterrupts();
+  uint8_t count = pressCount;
+  unsigned long last = lastIsrMs;
+  interrupts();
+
+  if (count > 0 && (millis() - last) > DOUBLE_PRESS_WINDOW_MS) {
+    noInterrupts(); pressCount = 0; interrupts();
+    return (count >= 2) ? 2 : 1;
+  }
+  return 0;
 }
 
 void goToSleep() {
   feedbackOff();
-  // ESP32-C3 GPIO deep-sleep wake (active LOW button -> wake on LOW level)
+  Serial.println("Entering deep sleep. Press button to wake.");
+  Serial.flush();                 // ensure the line is sent before USB dies
+  blockingBeep(1600, 120);        // descending pair = going to sleep
+  delay(40);
+  blockingBeep(1100, 200);
+  while (digitalRead(BUTTON_PIN) == LOW) delay(10);
+  delay(150);
   esp_deep_sleep_enable_gpio_wakeup(1ULL << BUTTON_PIN, ESP_GPIO_WAKEUP_GPIO_LOW);
   delay(50);
   esp_deep_sleep_start();
@@ -334,6 +363,7 @@ void setup() {
   bootCount++;
 
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), onButtonPress, FALLING);
 
   // LEDC: attach motor (PWM duty) and buzzer (tone) pins
   ledcAttach(MOTOR_PIN, MOTOR_PWM_FREQ, MOTOR_PWM_RES);

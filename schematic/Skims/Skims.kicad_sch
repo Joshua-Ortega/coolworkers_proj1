@@ -1,0 +1,106 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "cedd7807-72ee-4af3-8b74-a7839a62eaed")
+	(paper "A4")
+	(lib_symbols)
+	(sheet
+		(at 207.01 53.34)
+		(size 19.05 22.86)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "6c27468b-9492-4499-9099-ae0822208559")
+		(property "Sheetname" "MCU"
+			(at 207.01 52.6284 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "mcu.kicad_sch"
+			(at 207.01 76.7846 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Skims"
+				(path "/cedd7807-72ee-4af3-8b74-a7839a62eaed"
+					(page "3")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 205.74 116.84)
+		(size 20.32 12.7)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "f9d42a64-70c9-4783-bc5f-b14e89835d93")
+		(property "Sheetname" "VIbrator Motor"
+			(at 205.74 116.1284 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "vibratorMotor.kicad_sch"
+			(at 205.74 130.1246 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Skims"
+				(path "/cedd7807-72ee-4af3-8b74-a7839a62eaed"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)
